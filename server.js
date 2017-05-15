@@ -7,10 +7,20 @@ var pcConfig = {
     'urls': 'stun:stun.l.google.com:19302'
   }]
 };
+////////////////////////////////////////
+socket_server.emit('joined');
 //////////////////////////////////////
 //set up the messaging service
-
+if (location.hostname !== 'localhost') {
+  requestTurn(
+    'https://computeengineondemand.appspot.com/turn?username=41784574&key=4080218913'
+  );
+}
 function message_callback(message){
+if(message=='startService'){
+	socket_server.emit('message_next',"startService");
+	maybeStart();
+}
  if (message.type === 'candidate' ) {
     var candidate = new RTCIceCandidate({
       sdpMLineIndex: message.label,
@@ -22,19 +32,20 @@ else if (message.type === 'answer') {
   } 
 }
 
-socket.on('message',message_callback);
+socket_server.on('message',message_callback);
 //////////////////////////////////////////
 //getting user media and attaching it to video element 
-var video = document.querySelector('#video');
 
-navigator.mediaDevices.getUserMedia({
+	var video = document.querySelector('#video');
+   navigator.mediaDevices.getUserMedia({
   audio: true,
   video: true
 })
 .then(gotStream)
 .catch(function(e) {
   alert('getUserMedia() error: ' + e.name);
-});
+}); 
+
 
 console.log("getting user media");
 //////////////////////////
@@ -48,8 +59,7 @@ function gotStream(stream){
 	console.log('attaching stream to video element');
 	video.src= window.URL.createObjectURL(stream);
 	channelStream=stream;
-	socket_server.emit('message',"startService");
-	maybeStart();
+	
 }
 
 
@@ -63,7 +73,7 @@ function maybeStart(){
 		console.log("created peer connection");
 		pc_server_to_client.addStream(channelStream);
 		//sending offer to client
-		pc.createOffer(setLocalAndSendMessage, function(event){console.log("cannont create offer:"+event);});
+		pc_server_to_client.createOffer(setLocalAndSendMessage, function(event){console.log("cannont create offer:"+event);});
 
 	}
 	catch(e){
@@ -78,7 +88,7 @@ function handler_IceCandidate(event){
 	console.log('icecandidate event: ', event);													//work here
 	//sending info about network candidate to first client
   if (event.candidate) {
-    socket_server.emit('message',{
+    socket_server.emit('message_next',{
       type: 'candidate',
       label: event.candidate.sdpMLineIndex,
       id: event.candidate.sdpMid,
@@ -92,7 +102,7 @@ function handler_IceCandidate(event){
 function setLocalAndSendMessage(sessionDescription){
   pc_server_to_client.setLocalDescription(sessionDescription);
   console.log('setLocalAndSendMessage sending message', sessionDescription);
-  socket_server.emit('message',sessionDescription);																			//work here
+  socket_server.emit('message_next',sessionDescription);																			//work here
 
 }
 

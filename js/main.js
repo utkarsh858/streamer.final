@@ -9,6 +9,10 @@ var pcConfig = {
 var pc_receiverEnd;
 var video=document.querySelector('#video');
 var channelStream;
+////////////////////////////////
+//telling the server that the client is connected
+socket.emit('joined');
+console.log("sent the signal to send stream");
 /////////////////////////////////////////////////
 if (location.hostname !== 'localhost') {
   requestTurn(
@@ -16,7 +20,7 @@ if (location.hostname !== 'localhost') {
   );
 }
 //////////////////////////////////////
-var message_callback = function(message){
+var message_next_callback = function(message){
 if(message=="startService"){
 start();
 }
@@ -32,7 +36,7 @@ else if (message.type === 'candidate' ) {
   }
 }
 
-socket.on('message',message_callback);
+socket.on('message_next',message_next_callback);
 ///////////////////////////////////////////////////
 //create peer connection on signal 
 function start(){
