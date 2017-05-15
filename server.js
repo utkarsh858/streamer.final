@@ -18,6 +18,7 @@ if (location.hostname !== 'localhost') {
 }
 function message_callback(message){
 if(message=='startService'){
+	console.log("starting service and sending signal to client");
 	socket_server.emit('message_next',"startService");
 	maybeStart();
 }
@@ -137,3 +138,4 @@ function requestTurn(turnURL) {
     xhr.send();
   }
 }
+

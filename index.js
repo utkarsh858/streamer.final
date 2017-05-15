@@ -10,24 +10,28 @@ var app=http.createServer(function(req,res){fileServer.serve(req,res);}).listen(
 
 var io=socketIO.listen(app);
 
-var array_of_sockets=[];
+
 
 var connected_callback=function(socket){
 
 var message_next_callback=function(message){
-	
-	io.sockets.socket(array_of_sockets[array_of_sockets.indexof(socket.id)+1]).emit('message_next',message);
+	var conSockId=Object.keys(io.of('/').connected);  //araay of socket ids
+	var key_nextSock=conSockId[conSockId.indexOf(socket.id+"")+1];
+	io.to(key_nextSock).emit('message_next',message);
 
 }
 var message_callback=function(message){
-	
-	io.sockets.socket(array_of_sockets[array_of_sockets.indexof(socket.id)-1]).emit('message',message);
+	var conSockId=Object.keys(io.of('/').connected);
+	var key_prevSock=conSockId[conSockId.indexOf(socket.id+"")-1];
+	io.to(key_prevSock).emit('message',message);
 
 }
 
 var joined_callback=function(){
-	array_of_sockets.push(socket.id);
-	io.sockets.socket(array_of_sockets[array_of_sockets.indexof(socket.id)-1]).emit('message',"startService");
+	var conSockId=Object.keys(io.of('/').connected);
+	var key_prevSock=conSockId[conSockId.indexOf(socket.id+"")-1];
+
+	io.to(key_prevSock).emit('message',"startService");
 }
 
 socket.on('message',message_callback);

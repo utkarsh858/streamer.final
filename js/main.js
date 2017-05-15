@@ -6,7 +6,8 @@ var pcConfig = {
     'urls': 'stun:stun.l.google.com:19302'
   }]
 };
-var pc_receiverEnd;
+var pc_receiverEnd;  //connection to receive from previous client/server
+var pc_server_to_client;  //connection to forward stream to next joined client
 var video=document.querySelector('#video');
 var channelStream;
 ////////////////////////////////
@@ -22,6 +23,7 @@ if (location.hostname !== 'localhost') {
 //////////////////////////////////////
 var message_next_callback = function(message){
 if(message=="startService"){
+  console.log('received message for starting service on client');
 start();
 }
 else if (message.type === 'candidate' ) {
@@ -118,4 +120,73 @@ function requestTurn(turnURL) {
     xhr.open('GET', turnURL, true);
     xhr.send();
   }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// to make the connected client act as a server to next client we proceed
+
+//messaging service listening for messages from next sockets
+
+var message_callback = function(message){
+if(message=='startService'){
+  console.log("starting service and sending signal to client");
+  socket.emit('message_next',"startService");
+  maybeStartForNextClient();
+}
+ if (message.type === 'candidate' ) {
+    var candidate = new RTCIceCandidate({
+      sdpMLineIndex: message.label,
+      candidate: message.candidate
+    });
+    pc_server_to_client.addIceCandidate(candidate);}
+else if (message.type === 'answer') {
+    pc_server_to_client.setRemoteDescription(new RTCSessionDescription(message));
+  } 
+}
+
+socket.on('message',message_callback);
+
+
+
+function maybeStartForNextClient(){
+  console.log("may be start called now creating peer connection");
+  //peer connection
+  try{
+    pc_server_to_client=new RTCPeerConnection(pcConfig);
+    pc_server_to_client.onicecandidate=handler_next_IceCandidate;  //no onaddstream handler
+
+    console.log("created peer connection");
+    pc_server_to_client.addStream(channelStream);
+    //sending offer to client
+    pc_server_to_client.createOffer(next_setLocalAndSendMessage, function(event){console.log("cannont create offer:"+event);});
+
+  }
+  catch(e){
+    console.log('Failed to create PeerConnection, exception: ' + e.message);
+      alert('Cannot create RTCPeerConnection object.');
+  }
+
+
+}
+
+function handler_next_IceCandidate(event){
+    console.log('icecandidate event: ', event);                         //work here
+  //sending info about network candidate to first client
+  if (event.candidate) {
+    socket.emit('message_next',{
+      type: 'candidate',
+      label: event.candidate.sdpMLineIndex,
+      id: event.candidate.sdpMid,
+      candidate: event.candidate.candidate
+    });
+  } else {
+    console.log('End of candidates.');
+  }
+}
+
+function next_setLocalAndSendMessage(sessionDescription){
+  pc_server_to_client.setLocalDescription(sessionDescription);
+  console.log('setLocalAndSendMessage sending message', sessionDescription);
+  socket.emit('message_next',sessionDescription);                                      //work here
+
 }
