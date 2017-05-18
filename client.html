@@ -4,7 +4,8 @@
     <meta content="">
     <style></style>
   </head>
-  <body>
+  <body >
+
   	<h1>Client program</h1>
 
   <div id="videos">
@@ -14,4 +15,15 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="js/lib/adapter.js"></script>
   <script src="js/main.js"></script></body>
+
+  <script type="text/javascript">
+window.onbeforeunload = function(e) {
+  socket.disconnect();
+};
+function dis(){
+  console.log("disconnect button pressed");
+  socket.disconnect();
+}
+</script>
+<hr><button onclick="dis()">Disconnect</button>
   	</html>

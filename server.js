@@ -67,6 +67,7 @@ function gotStream(stream){
 function maybeStart(){
 	console.log("may be start called now creating peer connection");
 	//peer connection
+	if(pc_server_to_client) {pc_server_to_client.close();pc_server_to_client=null;console.log("Closing current connection and starting a new one");}
 	try{
 		pc_server_to_client=new RTCPeerConnection(pcConfig);
 		pc_server_to_client.onicecandidate=handler_IceCandidate;  //no onaddstream handler
@@ -86,7 +87,7 @@ function maybeStart(){
 }
 
 function handler_IceCandidate(event){
-	console.log('icecandidate event: ', event);													//work here
+	console.log('icecandidate event: ', event);													
 	//sending info about network candidate to first client
   if (event.candidate) {
     socket_server.emit('message_next',{
@@ -103,7 +104,7 @@ function handler_IceCandidate(event){
 function setLocalAndSendMessage(sessionDescription){
   pc_server_to_client.setLocalDescription(sessionDescription);
   console.log('setLocalAndSendMessage sending message', sessionDescription);
-  socket_server.emit('message_next',sessionDescription);																			//work here
+  socket_server.emit('message_next',sessionDescription);									
 
 }
 

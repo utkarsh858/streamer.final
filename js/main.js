@@ -1,6 +1,6 @@
 'use strict';
 
-var socket=io.connect();
+var socket=io.connect();//'http://localhost:8080',{'sync disconnect on unload':true});
 var pcConfig = {
   'iceServers': [{
     'urls': 'stun:stun.l.google.com:19302'
@@ -22,7 +22,12 @@ if (location.hostname !== 'localhost') {
 }
 //////////////////////////////////////
 var message_next_callback = function(message){
-if(message=="startService"){
+if(message=='send_join_signal'){
+  console.log("sending joined signal again");
+
+  socket.emit('joined');                          //this is when some previous client has been disconnected. 
+}
+else if(message=="startService"){
   console.log('received message for starting service on client');
 start();
 }
@@ -39,9 +44,9 @@ else if (message.type === 'candidate' ) {
 }
 
 socket.on('message_next',message_next_callback);
-///////////////////////////////////////////////////
-//create peer connection on signal 
+
 function start(){
+if(pc_receiverEnd){pc_receiverEnd.close();pc_receiverEnd=null;console.log("Closing current connection and starting a new one");}
 try{
 		pc_receiverEnd=new RTCPeerConnection(pcConfig);
 		pc_receiverEnd.onicecandidate=handler_IceCandidate;  
@@ -54,11 +59,23 @@ try{
 	}
 
 }
+////////////////////////////////////
+//now if a client is deleted
+// make sure that stream is forwarded to other clients in an organised way
+//so for that. If got the stream then we will send the message to the next client if it is present
+//make that client send the joined signal again and start the connection.
 
+
+///////////////////////////////////////////////////
+//create peer connection on signal 
 function handler_remoteStreamAdded(event) {
   console.log('Remote stream added.');
   video.src = window.URL.createObjectURL(event.stream);
   channelStream = event.stream;
+
+  //
+  console.log("sending send_join_signal");
+  socket.emit('message_next','send_join_signal');
 }
 
 function handler_IceCandidate(event){
@@ -128,12 +145,12 @@ function requestTurn(turnURL) {
 //messaging service listening for messages from next sockets
 
 var message_callback = function(message){
-if(message=='startService'){
+  if(message=='startService'){
   console.log("starting service and sending signal to client");
   socket.emit('message_next',"startService");
   maybeStartForNextClient();
 }
- if (message.type === 'candidate' ) {
+ else if (message.type === 'candidate' ) {
     var candidate = new RTCIceCandidate({
       sdpMLineIndex: message.label,
       candidate: message.candidate
@@ -151,6 +168,7 @@ socket.on('message',message_callback);
 function maybeStartForNextClient(){
   console.log("may be start called now creating peer connection");
   //peer connection
+  if(pc_server_to_client){pc_server_to_client.close();pc_server_to_client=null;console.log("Closing current connection and starting a new one");}
   try{
     pc_server_to_client=new RTCPeerConnection(pcConfig);
     pc_server_to_client.onicecandidate=handler_next_IceCandidate;  //no onaddstream handler
