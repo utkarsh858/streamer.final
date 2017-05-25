@@ -2,7 +2,36 @@
   <head>
     <title>client program</title>
     <meta content="">
-    <style></style>
+      <script type="text/javascript">
+    
+//for mobiles redirection
+var isMobile = {
+    Android: function() {
+        return navigator.userAgent.match(/Android/i);
+    },
+    BlackBerry: function() {
+        return navigator.userAgent.match(/BlackBerry/i);
+    },
+    iOS: function() {
+        return navigator.userAgent.match(/iPhone|iPad|iPod/i);
+    },
+    Opera: function() {
+        return navigator.userAgent.match(/Opera Mini/i);
+    },
+    Windows: function() {
+        return navigator.userAgent.match(/IEMobile/i);
+    },
+    any: function() {
+        return (isMobile.Android() || isMobile.BlackBerry() || isMobile.iOS() || isMobile.Opera() || isMobile.Windows());
+    }
+};
+
+if( isMobile.any() ){
+  window.location.replace('client_mobile.html');
+}
+
+
+  </script>
   </head>
   <body >
 
@@ -12,9 +41,11 @@
     <video id="video" autoplay muted></video>
   </div>
 
+
+
   <script src="/socket.io/socket.io.js"></script>
-  <script src="js/lib/adapter.js"></script>
-  <script src="js/main.js"></script></body>
+  <script src="/js/lib/adapter.js"></script>
+  <script src="/js/main.js"></script></body>
 
   <script type="text/javascript">
 window.onbeforeunload = function(e) {

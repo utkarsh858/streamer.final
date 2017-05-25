@@ -1,7 +1,10 @@
 'use strict';
+
+
+
 var channelStream;
 var socket_server=io.connect();
-var pc_server_to_client;
+var pc_server_to_client;    //each element of the array represents first node of a sin gle linked list
 var pcConfig = {
   'iceServers': [{
     'urls': 'stun:stun.l.google.com:19302'
@@ -140,3 +143,103 @@ function requestTurn(turnURL) {
   }
 }
 
+
+
+
+
+
+///// mobile support
+var array_of_indexes=[];
+var pc_server_to_mobile=[];
+var i=0;
+function message_server_callback(message){
+
+
+if(message.type=="start"){
+  
+  for(i=0;i<20;i++) {
+   if(pc_server_to_mobile[i]===undefined) {
+    
+    break;
+  }
+  } 
+                                                             //work here important  //finished
+  console.log("a mobile is connected with i="+i);
+  array_of_indexes[i]=message.index;
+  console.log("index of mobile in signalling server is"+array_of_indexes[i]);
+  console.log("starting service and sending signal to client");
+  socket_server.emit('message_mobile',{index:message.index,type:"start"});
+
+  Start_mobile();
+}
+
+if (message.type.type === 'candidate' ) {
+    var candidate = new RTCIceCandidate({
+      sdpMLineIndex: message.type.label,
+      candidate: message.type.candidate
+    });
+    pc_server_to_mobile[i].addIceCandidate(candidate);}
+else if (message.type.type === 'answer') {
+    pc_server_to_mobile[i].setRemoteDescription(new RTCSessionDescription(message.type));
+  } 
+}
+
+socket_server.on('message_server',message_server_callback);
+
+function Start_mobile(){
+  console.log("start_mobile called now creating peer connection");
+  //peer connection
+  
+  try{
+    pc_server_to_mobile[i]=new RTCPeerConnection(pcConfig);
+    pc_server_to_mobile[i].onicecandidate=handler_IceCandidate_mobile;  //no onaddstream handler
+
+    console.log("created peer connection");
+    pc_server_to_mobile[i].addStream(channelStream);
+    //sending offer to client
+    pc_server_to_mobile[i].createOffer(setLocalAndSendMessage_mobile, function(event){console.log("cannont create offer:"+event);});
+
+  }
+  catch(e){
+    console.log('Failed to create PeerConnection, exception: ' + e.message);
+      alert('Cannot create RTCPeerConnection object.');
+  }
+
+
+}
+
+function handler_IceCandidate_mobile(event){
+  console.log('icecandidate event: ', event);                         
+  //sending info about network candidate to first client
+  if (event.candidate) {
+    socket_server.emit('message_mobile',{index:array_of_indexes[i],type:{
+      type: 'candidate',
+      label: event.candidate.sdpMLineIndex,
+      id: event.candidate.sdpMid,
+      candidate: event.candidate.candidate
+    }});
+  } else {
+    console.log('End of candidates.');
+  }
+}
+
+function setLocalAndSendMessage_mobile(sessionDescription){
+  pc_server_to_mobile[i].setLocalDescription(sessionDescription);
+  console.log('setLocalAndSendMessage sending message', sessionDescription);
+  
+  socket_server.emit('message_mobile',{index:array_of_indexes[i],type:sessionDescription});                  
+
+}
+
+
+//mobile disconnect handler
+
+function disconnect_mobile_callback(index_of_mobile){
+  var j=array_of_indexes.indexOf(index_of_mobile);
+  pc_server_to_mobile[j].close();
+  pc_server_to_mobile[j]=undefined;
+  array_of_indexes[j]=undefined;
+
+}
+
+socket_server.on("disconnect_mobile",disconnect_mobile_callback);
