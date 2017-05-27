@@ -4,14 +4,17 @@
 
 var channelStream;
 var socket_server=io.connect();
-var pc_server_to_client;    //each element of the array represents first node of a sin gle linked list
+
+var pc_server_to_client=[];    //each element of the array represents first node of a sin gle linked list
+var temp_room;  //stores room for a short amount of time till the connection is established 
+
 var pcConfig = {
   'iceServers': [{
     'urls': 'stun:stun.l.google.com:19302'
   }]
 };
 ////////////////////////////////////////
-socket_server.emit('joined');
+socket_server.emit('joined_server');
 //////////////////////////////////////
 //set up the messaging service
 if (location.hostname !== 'localhost') {
@@ -20,19 +23,20 @@ if (location.hostname !== 'localhost') {
   );
 }
 function message_callback(message){
-if(message=='startService'){
+if(message.data=='startService'){
+  temp_room=message.room;
 	console.log("starting service and sending signal to client");
-	socket_server.emit('message_next',"startService");
+	socket_server.emit('message_next',{room:temp_room,data:"startService"});
 	maybeStart();
 }
- if (message.type === 'candidate' ) {
+ if (message.data.type === 'candidate' ) {
     var candidate = new RTCIceCandidate({
-      sdpMLineIndex: message.label,
-      candidate: message.candidate
+      sdpMLineIndex: message.data.label,
+      candidate: message.data.candidate
     });
-    pc_server_to_client.addIceCandidate(candidate);}
-else if (message.type === 'answer') {
-    pc_server_to_client.setRemoteDescription(new RTCSessionDescription(message));
+    pc_server_to_client[temp_room].addIceCandidate(candidate);}
+else if (message.data.type === 'answer') {
+    pc_server_to_client[temp_room].setRemoteDescription(new RTCSessionDescription(message.data));
   } 
 }
 
@@ -70,15 +74,15 @@ function gotStream(stream){
 function maybeStart(){
 	console.log("may be start called now creating peer connection");
 	//peer connection
-	if(pc_server_to_client) {pc_server_to_client.close();pc_server_to_client=null;console.log("Closing current connection and starting a new one");}
+	if(pc_server_to_client[temp_room]) {pc_server_to_client[temp_room].close();pc_server_to_client[temp_room]=null;console.log("Closing current connection and starting a new one");}
 	try{
-		pc_server_to_client=new RTCPeerConnection(pcConfig);
-		pc_server_to_client.onicecandidate=handler_IceCandidate;  //no onaddstream handler
+		pc_server_to_client[temp_room]=new RTCPeerConnection(pcConfig);
+		pc_server_to_client[temp_room].onicecandidate=handler_IceCandidate;  //no onaddstream handler
 
 		console.log("created peer connection");
-		pc_server_to_client.addStream(channelStream);
+		pc_server_to_client[temp_room].addStream(channelStream);
 		//sending offer to client
-		pc_server_to_client.createOffer(setLocalAndSendMessage, function(event){console.log("cannont create offer:"+event);});
+		pc_server_to_client[temp_room].createOffer(setLocalAndSendMessage, function(event){console.log("cannont create offer:"+event);});
 
 	}
 	catch(e){
@@ -93,21 +97,21 @@ function handler_IceCandidate(event){
 	console.log('icecandidate event: ', event);													
 	//sending info about network candidate to first client
   if (event.candidate) {
-    socket_server.emit('message_next',{
+    socket_server.emit('message_next',{room:temp_room,data:{
       type: 'candidate',
       label: event.candidate.sdpMLineIndex,
       id: event.candidate.sdpMid,
       candidate: event.candidate.candidate
-    });
+    }});
   } else {
     console.log('End of candidates.');
   }
 }
 
 function setLocalAndSendMessage(sessionDescription){
-  pc_server_to_client.setLocalDescription(sessionDescription);
+  pc_server_to_client[temp_room].setLocalDescription(sessionDescription);
   console.log('setLocalAndSendMessage sending message', sessionDescription);
-  socket_server.emit('message_next',sessionDescription);									
+  socket_server.emit('message_next',{room:temp_room,data:sessionDescription});									
 
 }
 
@@ -142,6 +146,20 @@ function requestTurn(turnURL) {
     xhr.send();
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

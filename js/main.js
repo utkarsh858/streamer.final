@@ -14,6 +14,14 @@ var channelStream;
 //telling the server that the client is connected
 socket.emit('joined');
 console.log("sent the signal to send stream");
+
+var room;
+
+function room_callback(message){
+  room=message;
+  console.log("Got my room!!Yipee!:"+room);
+}
+socket.on("room",room_callback);
 /////////////////////////////////////////////////
 if (location.hostname !== 'localhost') {
   requestTurn(
@@ -22,10 +30,10 @@ if (location.hostname !== 'localhost') {
 }
 //////////////////////////////////////
 var message_next_callback = function(message){
-if(message=='send_join_signal'){
+if(message=='send_join_again_signal'){
   console.log("sending joined signal again");
 
-  socket.emit('joined');                          //this is when some previous client has been disconnected. 
+  socket.emit('joined_again',room);                          //this is when some previous client has been disconnected. 
 }
 else if(message=="startService"){
   console.log('received message for starting service on client');
@@ -75,19 +83,19 @@ function handler_remoteStreamAdded(event) {
 
   //
   console.log("sending send_join_signal");
-  socket.emit('message_next','send_join_signal');
+  socket.emit('message_next',{room:room,data:'send_join_again_signal'});
 }
 
 function handler_IceCandidate(event){
 	console.log('icecandidate event: ', event);													//work here
 	//sending info about network candidate to first client
   if (event.candidate) {
-    socket.emit('message',{
+    socket.emit('message',{room:room,data:{
       type: 'candidate',
       label: event.candidate.sdpMLineIndex,
       id: event.candidate.sdpMid,
       candidate: event.candidate.candidate
-    });
+    }});
   } else {
     console.log('End of candidates.');
   }
@@ -106,7 +114,7 @@ function doAnswer() {
 function setLocalAndSendMessage(sessionDescription){
   pc_receiverEnd.setLocalDescription(sessionDescription);
   console.log('setLocalAndSendMessage sending message', sessionDescription);
-  socket.emit('message',sessionDescription);																			//work here
+  socket.emit('message',{room:room,data:sessionDescription});																			//work here
 
 }
 ///////////////////////////////////////////////////////
@@ -145,19 +153,19 @@ function requestTurn(turnURL) {
 //messaging service listening for messages from next sockets
 
 var message_callback = function(message){
-  if(message=='startService'){
+  if(message.data=='startService'){
   console.log("starting service and sending signal to client");
-  socket.emit('message_next',"startService");
+  socket.emit('message_next',{room:room,data:"startService"});
   maybeStartForNextClient();
 }
- else if (message.type === 'candidate' ) {
+ else if (message.data.type === 'candidate' ) {
     var candidate = new RTCIceCandidate({
-      sdpMLineIndex: message.label,
-      candidate: message.candidate
+      sdpMLineIndex: message.data.label,
+      candidate: message.data.candidate
     });
     pc_server_to_client.addIceCandidate(candidate);}
-else if (message.type === 'answer') {
-    pc_server_to_client.setRemoteDescription(new RTCSessionDescription(message));
+else if (message.data.type === 'answer') {
+    pc_server_to_client.setRemoteDescription(new RTCSessionDescription(message.data));
   } 
 }
 
@@ -191,12 +199,12 @@ function handler_next_IceCandidate(event){
     console.log('icecandidate event: ', event);                         //work here
   //sending info about network candidate to first client
   if (event.candidate) {
-    socket.emit('message_next',{
+    socket.emit('message_next',{room:room,data:{
       type: 'candidate',
       label: event.candidate.sdpMLineIndex,
       id: event.candidate.sdpMid,
       candidate: event.candidate.candidate
-    });
+    }});
   } else {
     console.log('End of candidates.');
   }
@@ -204,7 +212,7 @@ function handler_next_IceCandidate(event){
 
 function next_setLocalAndSendMessage(sessionDescription){
   pc_server_to_client.setLocalDescription(sessionDescription);
-  console.log('setLocalAndSendMessage sending message', sessionDescription);
-  socket.emit('message_next',sessionDescription);                                      //work here
+  console.log('next_setLocalAndSendMessage sending message', sessionDescription);
+  socket.emit('message_next',{room:room,data:sessionDescription});                                      //work here
 
 }

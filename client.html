@@ -50,10 +50,13 @@ if( isMobile.any() ){
   <script type="text/javascript">
 window.onbeforeunload = function(e) {
   socket.disconnect();
+  //socket.emit('dis');
 };
 function dis(){
   console.log("disconnect button pressed");
+  console.log("roomis "+room);
   socket.disconnect();
+  //socket.emit('dis');
 }
 </script>
 <hr><button onclick="dis()">Disconnect</button>
