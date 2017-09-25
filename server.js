@@ -5,7 +5,7 @@
 var channelStream;
 var socket_server=io.connect();
 
-var pc_server_to_client=[];    //each element of the array represents first node of a sin gle linked list
+var pc_server_to_client=new Object();    //each element of the array represents first node of a sin gle linked list
 var temp_room;  //stores room for a short amount of time till the connection is established 
 
 var pcConfig = {
@@ -16,12 +16,12 @@ var pcConfig = {
 ////////////////////////////////////////
 socket_server.emit('joined_server');
 //////////////////////////////////////
-//set up the messaging service
-if (location.hostname !== 'localhost') {
-  requestTurn(
-    'https://computeengineondemand.appspot.com/turn?username=41784574&key=4080218913'
-  );
-}
+// //set up the messaging service
+// if (location.hostname !== 'localhost') {
+//   requestTurn(
+//     'https://computeengineondemand.appspot.com/turn?username=41784574&key=4080218913'
+//   );
+// }
 function message_callback(message){
 if(message.data=='startService'){
   temp_room=message.room;
@@ -34,9 +34,9 @@ if(message.data=='startService'){
       sdpMLineIndex: message.data.label,
       candidate: message.data.candidate
     });
-    pc_server_to_client[temp_room].addIceCandidate(candidate);}
+    pc_server_to_client.temp_room.addIceCandidate(candidate);}
 else if (message.data.type === 'answer') {
-    pc_server_to_client[temp_room].setRemoteDescription(new RTCSessionDescription(message.data));
+    pc_server_to_client.temp_room.setRemoteDescription(new RTCSessionDescription(message.data));
   } 
 }
 
@@ -74,15 +74,15 @@ function gotStream(stream){
 function maybeStart(){
 	console.log("may be start called now creating peer connection");
 	//peer connection
-	if(pc_server_to_client[temp_room]) {pc_server_to_client[temp_room].close();pc_server_to_client[temp_room]=null;console.log("Closing current connection and starting a new one");}
+	if(pc_server_to_client.temp_room) {pc_server_to_client.temp_room.close();pc_server_to_client.temp_room=null;console.log("Closing current connection and starting a new one");}
 	try{
-		pc_server_to_client[temp_room]=new RTCPeerConnection(pcConfig);
-		pc_server_to_client[temp_room].onicecandidate=handler_IceCandidate;  //no onaddstream handler
+		pc_server_to_client.temp_room=new RTCPeerConnection(pcConfig);
+		pc_server_to_client.temp_room.onicecandidate=handler_IceCandidate;  //no onaddstream handler
 
 		console.log("created peer connection");
-		pc_server_to_client[temp_room].addStream(channelStream);
+		pc_server_to_client.temp_room.addStream(channelStream);
 		//sending offer to client
-		pc_server_to_client[temp_room].createOffer(setLocalAndSendMessage, function(event){console.log("cannont create offer:"+event);});
+		pc_server_to_client.temp_room.createOffer(setLocalAndSendMessage, function(event){console.log("cannont create offer:"+event);});
 
 	}
 	catch(e){
@@ -109,155 +109,14 @@ function handler_IceCandidate(event){
 }
 
 function setLocalAndSendMessage(sessionDescription){
-  pc_server_to_client[temp_room].setLocalDescription(sessionDescription);
+  pc_server_to_client.temp_room.setLocalDescription(sessionDescription);
   console.log('setLocalAndSendMessage sending message', sessionDescription);
   socket_server.emit('message_next',{room:temp_room,data:sessionDescription});									
 
 }
 
-///////////////////////////////////////////////////////////////////////////////////
-//request for turn server
-
-function requestTurn(turnURL) {
-  var turnExists = false;
-  for (var i in pcConfig.iceServers) {
-    if (pcConfig.iceServers[i].url.substr(0, 5) === 'turn:') {
-      turnExists = true;
-      turnReady = true;
-      break;
-    }
-  }
-  if (!turnExists) {
-    console.log('Getting TURN server from ', turnURL);
-    // No TURN server. Get one from computeengineondemand.appspot.com:
-    var xhr = new XMLHttpRequest();
-    xhr.onreadystatechange = function() {
-      if (xhr.readyState === 4 && xhr.status === 200) {
-        var turnServer = JSON.parse(xhr.responseText);
-        console.log('Got TURN server: ', turnServer);
-        pcConfig.iceServers.push({
-          'url': 'turn:' + turnServer.username + '@' + turnServer.turn,
-          'credential': turnServer.password
-        });
-        turnReady = true;
-      }
-    };
-    xhr.open('GET', turnURL, true);
-    xhr.send();
-  }
-}
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-///// mobile support
-var array_of_indexes=[];
-var pc_server_to_mobile=[];
-var i=0;
-function message_server_callback(message){
-
-
-if(message.type=="start"){
-  
-  for(i=0;i<20;i++) {
-   if(pc_server_to_mobile[i]===undefined) {
-    
-    break;
-  }
-  } 
-                                                             //work here important  //finished
-  console.log("a mobile is connected with i="+i);
-  array_of_indexes[i]=message.index;
-  console.log("index of mobile in signalling server is"+array_of_indexes[i]);
-  console.log("starting service and sending signal to client");
-  socket_server.emit('message_mobile',{index:message.index,type:"start"});
-
-  Start_mobile();
-}
-
-if (message.type.type === 'candidate' ) {
-    var candidate = new RTCIceCandidate({
-      sdpMLineIndex: message.type.label,
-      candidate: message.type.candidate
-    });
-    pc_server_to_mobile[i].addIceCandidate(candidate);}
-else if (message.type.type === 'answer') {
-    pc_server_to_mobile[i].setRemoteDescription(new RTCSessionDescription(message.type));
-  } 
-}
-
-socket_server.on('message_server',message_server_callback);
-
-function Start_mobile(){
-  console.log("start_mobile called now creating peer connection");
-  //peer connection
-  
-  try{
-    pc_server_to_mobile[i]=new RTCPeerConnection(pcConfig);
-    pc_server_to_mobile[i].onicecandidate=handler_IceCandidate_mobile;  //no onaddstream handler
-
-    console.log("created peer connection");
-    pc_server_to_mobile[i].addStream(channelStream);
-    //sending offer to client
-    pc_server_to_mobile[i].createOffer(setLocalAndSendMessage_mobile, function(event){console.log("cannont create offer:"+event);});
-
-  }
-  catch(e){
-    console.log('Failed to create PeerConnection, exception: ' + e.message);
-      alert('Cannot create RTCPeerConnection object.');
-  }
-
-
-}
-
-function handler_IceCandidate_mobile(event){
-  console.log('icecandidate event: ', event);                         
-  //sending info about network candidate to first client
-  if (event.candidate) {
-    socket_server.emit('message_mobile',{index:array_of_indexes[i],type:{
-      type: 'candidate',
-      label: event.candidate.sdpMLineIndex,
-      id: event.candidate.sdpMid,
-      candidate: event.candidate.candidate
-    }});
-  } else {
-    console.log('End of candidates.');
-  }
-}
-
-function setLocalAndSendMessage_mobile(sessionDescription){
-  pc_server_to_mobile[i].setLocalDescription(sessionDescription);
-  console.log('setLocalAndSendMessage sending message', sessionDescription);
-  
-  socket_server.emit('message_mobile',{index:array_of_indexes[i],type:sessionDescription});                  
-
-}
-
-
-//mobile disconnect handler
-
-function disconnect_mobile_callback(index_of_mobile){
-  var j=array_of_indexes.indexOf(index_of_mobile);
-  pc_server_to_mobile[j].close();
-  pc_server_to_mobile[j]=undefined;
-  array_of_indexes[j]=undefined;
-
-}
-
-socket_server.on("disconnect_mobile",disconnect_mobile_callback);
