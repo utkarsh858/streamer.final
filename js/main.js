@@ -3,11 +3,11 @@
 var socket=io.connect();//'http://localhost:8080',{'sync disconnect on unload':true});
 var pcConfig = {
   'iceServers': [{
-    'urls': 'stun:stun.l.google.com:19302'
+    'urls': 'stun:stun1.l.google.com:19302'
   }]
 };
 var pc_receiverEnd;  //connection to receive from previous client/server
-var pc_server_to_client=new Object();  //connection to forward stream to next joined client
+var pc_server_to_client=[];  //connection to forward stream to next joined client
 var video=document.querySelector('#video');
 var channelStream;
 ////////////////////////////////
@@ -125,14 +125,14 @@ var message_callback = function(message){
   socket.emit('message_next',{room:room,data:"startService"});
   maybeStartForNextClient();
 }
- else if (message.data.type === 'candidate' ) {
+else if (message.data.type === 'candidate' ) {
     var candidate = new RTCIceCandidate({
       sdpMLineIndex: message.data.label,
       candidate: message.data.candidate
     });
-    pc_server_to_client.room.addIceCandidate(candidate);}
+    pc_server_to_client[room].addIceCandidate(candidate);}
 else if (message.data.type === 'answer') {
-    pc_server_to_client.room.setRemoteDescription(new RTCSessionDescription(message.data));
+    pc_server_to_client[room].setRemoteDescription(new RTCSessionDescription(message.data));
   } 
 }
 
@@ -143,15 +143,15 @@ socket.on('message',message_callback);
 function maybeStartForNextClient(){
   console.log("may be start called now creating peer connection");
   //peer connection
-  if(pc_server_to_client.room){pc_server_to_client.room.close();pc_server_to_client.room=null;console.log("Closing current connection and starting a new one");}
+  if(pc_server_to_client[room]){pc_server_to_client[room].close();pc_server_to_client[room]=null;console.log("Closing current connection and starting a new one");}
   try{
-    pc_server_to_client.room=new RTCPeerConnection(pcConfig);
-    pc_server_to_client.room.onicecandidate=handler_next_IceCandidate;  //no onaddstream handler
+    pc_server_to_client[room]=new RTCPeerConnection(pcConfig);
+    pc_server_to_client[room].onicecandidate=handler_next_IceCandidate;  //no onaddstream handler
 
     console.log("created peer connection");
-    pc_server_to_client.room.addStream(channelStream);
+    pc_server_to_client[room].addStream(channelStream);
     //sending offer to client
-    pc_server_to_client.room.createOffer(next_setLocalAndSendMessage, function(event){console.log("cannont create offer:"+event);});
+    pc_server_to_client[room].createOffer(next_setLocalAndSendMessage, function(event){console.log("cannont create offer:"+event);});
 
   }
   catch(e){
@@ -178,7 +178,7 @@ function handler_next_IceCandidate(event){
 }
 
 function next_setLocalAndSendMessage(sessionDescription){
-  pc_server_to_client.room.setLocalDescription(sessionDescription);
+  pc_server_to_client[room].setLocalDescription(sessionDescription);
   console.log('next_setLocalAndSendMessage sending message', sessionDescription);
   socket.emit('message_next',{room:room,data:sessionDescription});                                      //work here
 

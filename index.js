@@ -14,9 +14,9 @@ var io=socketIO.listen(app);
 var i;
 
 var key_prevSock;var key_nextSock;
-var connected_callback=function(socket){
 
-var tree=[];
+
+var tree=['popo'];
 var server_client_lines=3,client_client_lines=3;
 
 
@@ -38,7 +38,7 @@ var roomCount=5;
 //
 */
 
-
+var connected_callback=function(socket){
 var message_next_callback=function(message){
 	// var temp_room=message.room;
 
@@ -51,8 +51,9 @@ var message_next_callback=function(message){
 	// io.to(key_nextSock).emit('message_next',message.data);       //in message_next no need to send the room no.
 	// console.log("sent the message to next socket"+key_nextSock+"of"+socket.id+"in room"+temp_room);
 	// }
-
-	io.to(message.room).emit('message_next',message.data);         //+++++++++++++++++++++
+	var index_parent=tree.indexOf(socket.id);
+	var index_child=index_parent*client_client_lines+1+message.room;
+	io.to(tree[index_child]).emit('message_next',message.data);         //+++++++++++++++++++++
 }
 
 var message_callback=function(message){
@@ -69,7 +70,8 @@ var message_callback=function(message){
 
 	var index_child=tree.indexOf(socket.id);
 	var index_parent=Math.floor((index_child-1)/client_client_lines);
-	io.to(tree[index_parent]).emit('message',{room:socket.id,data:message});      //++++++++++++++
+	var relative_index_child=index_child-(index_parent*client_client_lines+1);
+	io.to(tree[index_parent]).emit('message',{room:relative_index_child,data:message});      //++++++++++++++
 }
 
 var joined_callback=function(){
@@ -100,7 +102,7 @@ var joined_callback=function(){
 console.log("Pushing a client");
 	
 	//tree.push(socket.id);  old simple method,Na'ah...
-	
+	console.log(tree);
 	for(var i=1;;i++) {
 		console.log("tree["+i+"]"+tree[i]);
 		if(tree[i]===undefined) {tree[i]=socket.id; 
@@ -110,21 +112,23 @@ console.log("Pushing a client");
 	var index_parent=Math.floor((index_child-1)/client_client_lines);
 	
 	console.log("A faccha got added with id:"+index_child+":"+tree[index_child]+"   parent:"+ index_parent+":"+tree[index_parent]+":"+tree[0]);
-	io.to(tree[index_parent]).emit('message',{data:"startService",room:socket.id});
+	var relative_index_child=index_child-(index_parent*client_client_lines+1);
+	
+	io.to(tree[index_parent]).emit('message',{data:"startService",room:relative_index_child});
 	
 }
 var joined_again_callback =function(room){
-	if(io.sockets.adapter.rooms[room]!=undefined){
-	console.log(io.sockets.adapter.rooms[room]);
+	// if(io.sockets.adapter.rooms[room]!=undefined){
+	// console.log(io.sockets.adapter.rooms[room]);
 	
-	 conSockId=Object.keys(io.sockets.adapter.rooms[room].sockets);
-	 index_of_socket=conSockId.indexOf(temp+"");
+	//  conSockId=Object.keys(io.sockets.adapter.rooms[room].sockets);
+	//  index_of_socket=conSockId.indexOf(temp+"");
 	
-	key_prevSock=conSockId[index_of_socket-1];
+	// key_prevSock=conSockId[index_of_socket-1];
 	
-	io.to(key_prevSock).emit('message',{room:room,data:"startService"});
-	console.log("received joined request of "+socket.id+"in room:"+room);
-	}
+	// io.to(key_prevSock).emit('message',{room:room,data:"startService"});
+	// console.log("received joined request of "+socket.id+"in room:"+room);
+	// }
 
 }
 
@@ -172,7 +176,7 @@ var disconnect_callback = function(){
 
 
 var message_server_callback=function(message){
-	io.to(array_of_mobiles[0]).emit("message_server",message);
+	// io.to(array_of_mobiles[0]).emit("message_server",message);
 }
 
 function joined_server_callback(){
