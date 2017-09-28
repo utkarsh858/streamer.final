@@ -23,33 +23,39 @@ socket_server.emit('joined_server');
 //   );
 // }
 function message_callback(message){
-if(message.data=='startService'){
-  temp_room=message.room;
-	console.log("starting service and sending signal to client");
-	socket_server.emit('message_next',{room:temp_room,data:"startService"});
-	maybeStart();
-}
- if (message.data.type === 'candidate' ) {
+  console.log('message');
+  console.log(message);
+  if(message.data=='startService'){
+    temp_room=message.room;
+    console.log("starting service and sending signal to client");
+    socket_server.emit('message_next',{room:temp_room,data:"startService"});
+    maybeStart();
+  }
+  if (message.data.data.type === 'candidate' ) {
     var candidate = new RTCIceCandidate({
-      sdpMLineIndex: message.data.label,
-      candidate: message.data.candidate
+      sdpMLineIndex: message.data.data.label,
+      candidate: message.data.data.candidate
     });
     pc_server_to_client[temp_room].addIceCandidate(candidate);}
-else if (message.data.type === 'answer') {
-    pc_server_to_client[temp_room].setRemoteDescription(new RTCSessionDescription(message.data));
-  } 
-}
+    else if (message.data.data.type === 'answer') {
+      pc_server_to_client[temp_room].setRemoteDescription(new RTCSessionDescription(message.data.data));
+    } 
+  }
 
-socket_server.on('message',message_callback);
+  socket_server.on('message',message_callback);
 //////////////////////////////////////////
 //getting user media and attaching it to video element 
 
-	var video = document.querySelector('#video');
-   navigator.mediaDevices.getUserMedia({
+var video = document.querySelector('#video');
+navigator.mediaDevices.getUserMedia({
   audio: true,
   video: true
 })
-.then(gotStream)
+.then(function(stream) {
+  console.log('attaching stream to video element');
+  video.src= window.URL.createObjectURL(stream);
+  channelStream=stream;
+})
 .catch(function(e) {
   alert('getUserMedia() error: ' + e.name);
 }); 
@@ -60,7 +66,7 @@ console.log("getting user media");
 if (location.hostname !== 'localhost') {
   requestTurn(
     'https://computeengineondemand.appspot.com/turn?username=41784574&key=4080218913'
-  );
+    );
 }
 /////////////////////////////
 function gotStream(stream){
@@ -68,11 +74,11 @@ function gotStream(stream){
 	video.src= window.URL.createObjectURL(stream);
 	channelStream=stream;
 	
-}
+  }
 
 
-function maybeStart(){
-	console.log("may be start called now creating peer connection");
+  function maybeStart(){
+   console.log("may be start called now creating peer connection");
 	//peer connection
 	if(pc_server_to_client[temp_room]) {pc_server_to_client[temp_room].close();pc_server_to_client[temp_room]=null;console.log("Closing current connection and starting a new one");}
 	try{
@@ -82,13 +88,14 @@ function maybeStart(){
 		console.log("created peer connection");
 		pc_server_to_client[temp_room].addStream(channelStream);
 		//sending offer to client
+    console.log("creating offer");
 		pc_server_to_client[temp_room].createOffer(setLocalAndSendMessage, function(event){console.log("cannont create offer:"+event);});
 
 	}
 	catch(e){
 		console.log('Failed to create PeerConnection, exception: ' + e.message);
-    	alert('Cannot create RTCPeerConnection object.');
-	}
+   alert('Cannot create RTCPeerConnection object.');
+ }
 
 
 }

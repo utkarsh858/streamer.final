@@ -1,6 +1,6 @@
 'use strict';
 
-var socket=io.connect();//'http://localhost:8080',{'sync disconnect on unload':true});
+var socket=io.connect();//'http://localhost:80',{'sync disconnect on unload':true});
 var pcConfig = {
   'iceServers': [{
     'urls': 'stun:stun1.l.google.com:19302'
@@ -74,6 +74,7 @@ try{
 function handler_remoteStreamAdded(event) {
   console.log('Remote stream added.');
   video.src = window.URL.createObjectURL(event.stream);
+  video.play();
   channelStream = event.stream;
 
   //
